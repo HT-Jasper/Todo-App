@@ -23,9 +23,14 @@ export default function Logoff() {
   };
 
   return (
-    <div>
-      {logoutError && <p>{logoutError}</p>}
-      <button type="button" onClick={handleLogout} disabled={isLoggingOff}>
+    <div className="logoff">
+      {logoutError && <p className="form-error">{logoutError}</p>}
+      <button
+        className="button-secondary"
+        type="button"
+        onClick={handleLogout}
+        disabled={isLoggingOff}
+      >
         {isLoggingOff ? 'Logging off...' : 'Log Off'}
       </button>
     </div>

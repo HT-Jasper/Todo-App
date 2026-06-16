@@ -1,39 +1,52 @@
-import React, { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import TextInputWithLabel from '../../shared/TextInputWithLabel.jsx';
-import { isValidTodoTitle } from '../../utils/todoValidation.js';
+import {
+  TODO_TITLE_MAX_LENGTH,
+  isValidTodoTitle,
+  prepareTodoTitle,
+} from '../../utils/todoValidation.js';
 
 export default function TodoForm({ onAddTodo }) {
   const [workingTodoTitle, setWorkingTodoTitle] = useState('');
+  const [titleError, setTitleError] = useState('');
   const inputRef = useRef(null);
 
   const handleAddTodo = (event) => {
     event.preventDefault();
-    const title = workingTodoTitle.trim();
+    const result = prepareTodoTitle(workingTodoTitle);
 
-    if (!isValidTodoTitle(title)) return;
-    onAddTodo(title);
+    if (result.error) {
+      setTitleError(result.error);
+      return;
+    }
+
+    onAddTodo(result.title);
     setWorkingTodoTitle('');
+    setTitleError('');
     inputRef.current?.focus();
   };
 
-    const handleKeyDown = (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleAddTodo();
-      }
-    };
-
   return (
-    <form onSubmit={handleAddTodo}>
-      <TextInputWithLabel 
-      elementID='todoTitle'
-      labelText='ToDo'
-      onChange={(e) => setWorkingTodoTitle(e.target.value)}
-      ref={inputRef}
-      value={workingTodoTitle}
+    <form className="todo-form" onSubmit={handleAddTodo}>
+      <TextInputWithLabel
+        elementId="todoTitle"
+        helpText={`${workingTodoTitle.trim().length}/${TODO_TITLE_MAX_LENGTH} characters`}
+        labelText="New todo"
+        maxLength={TODO_TITLE_MAX_LENGTH}
+        onChange={(event) => {
+          setWorkingTodoTitle(event.target.value);
+          setTitleError('');
+        }}
+        placeholder="Add a clear, actionable task"
+        ref={inputRef}
+        required
+        value={workingTodoTitle}
       />
-  
-      <button disabled={!isValidTodoTitle(workingTodoTitle)}>Add Todo</button>
+      {titleError && <p className="form-error">{titleError}</p>}
+
+      <button disabled={!isValidTodoTitle(workingTodoTitle)} type="submit">
+        Add Todo
+      </button>
     </form>
   );
 }
