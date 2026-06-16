@@ -75,12 +75,13 @@ export default function TodoListItem({
           </div>
         ) : (
           <>
-            <button
-              aria-pressed={todo.isCompleted}
-              className="todo-checkbox"
-              type="button"
-              onClick={() => onCompleteTodo(todoId)}
-            >
+            <label className="todo-checkbox" htmlFor={`checkbox-${todoId}`}>
+              <input
+                checked={Boolean(todo.isCompleted)}
+                id={`checkbox-${todoId}`}
+                type="checkbox"
+                onChange={() => onCompleteTodo(todoId)}
+              />
               <span
                 className={
                   todo.isCompleted
@@ -92,7 +93,7 @@ export default function TodoListItem({
               <span className="sr-only">
                 {todo.isCompleted ? 'Mark todo active' : 'Mark todo complete'}
               </span>
-            </button>
+            </label>
 
             <button
               className="todo-title-button"
