@@ -15,6 +15,7 @@ export default function TodoListItem({
   const [isEditing, setIsEditing] = useState(false);
   const [workingTitle, setWorkingTitle] = useState(todo.title);
   const [editError, setEditError] = useState('');
+  const todoId = todo.id ?? todo._id;
 
   const handleCancel = () => {
     setWorkingTitle(todo.title);
@@ -74,18 +75,24 @@ export default function TodoListItem({
           </div>
         ) : (
           <>
-            <label className="todo-checkbox">
-              <input
-                type="checkbox"
-                id={`checkbox${todo.id}`}
-                checked={todo.isCompleted}
-                onChange={() => onCompleteTodo(todo.id)}
+            <button
+              aria-pressed={todo.isCompleted}
+              className="todo-checkbox"
+              type="button"
+              onClick={() => onCompleteTodo(todoId)}
+            >
+              <span
+                className={
+                  todo.isCompleted
+                    ? 'checkbox-control is-checked'
+                    : 'checkbox-control'
+                }
+                aria-hidden="true"
               />
-              <span className="checkbox-control" aria-hidden="true" />
               <span className="sr-only">
                 {todo.isCompleted ? 'Mark todo active' : 'Mark todo complete'}
               </span>
-            </label>
+            </button>
 
             <button
               className="todo-title-button"
@@ -106,7 +113,7 @@ export default function TodoListItem({
               <button
                 className="button-danger"
                 type="button"
-                onClick={() => onDeleteTodo(todo.id)}
+                onClick={() => onDeleteTodo(todoId)}
               >
                 Delete
               </button>

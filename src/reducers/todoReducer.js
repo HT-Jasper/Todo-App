@@ -32,6 +32,10 @@ export const initialTodoState = {
   dataVersion: 0,
 };
 
+function getTodoId(todo) {
+  return todo.id ?? todo._id;
+}
+
 export function todoReducer(state, action) {
   switch (action.type) {
     case TODO_ACTIONS.FETCH_START:
@@ -72,7 +76,7 @@ export function todoReducer(state, action) {
       return {
         ...state,
         todoList: state.todoList.map((todo) =>
-          todo.id === action.payload.temporaryId ? action.payload.todo : todo
+          getTodoId(todo) === action.payload.temporaryId ? action.payload.todo : todo
         ),
         dataVersion: state.dataVersion + 1,
         error: '',
@@ -82,7 +86,7 @@ export function todoReducer(state, action) {
       return {
         ...state,
         todoList: state.todoList.filter(
-          (todo) => todo.id !== action.payload.temporaryId
+          (todo) => getTodoId(todo) !== action.payload.temporaryId
         ),
         error: action.payload.message,
       };
@@ -91,8 +95,12 @@ export function todoReducer(state, action) {
       return {
         ...state,
         todoList: state.todoList.map((todo) =>
-          todo.id === action.payload.id
-            ? { ...todo, isCompleted: action.payload.isCompleted }
+          getTodoId(todo) === action.payload.id
+            ? {
+                ...todo,
+                isCompleted: action.payload.isCompleted,
+                completed: action.payload.isCompleted,
+              }
             : todo
         ),
         error: '',
@@ -102,7 +110,7 @@ export function todoReducer(state, action) {
       return {
         ...state,
         todoList: state.todoList.map((todo) =>
-          todo.id === action.payload.id ? action.payload.todo : todo
+          getTodoId(todo) === action.payload.id ? action.payload.todo : todo
         ),
         dataVersion: state.dataVersion + 1,
         error: '',
@@ -112,7 +120,7 @@ export function todoReducer(state, action) {
       return {
         ...state,
         todoList: state.todoList.map((todo) =>
-          todo.id === action.payload.todo.id ? action.payload.todo : todo
+          getTodoId(todo) === getTodoId(action.payload.todo) ? action.payload.todo : todo
         ),
         error: action.payload.message,
       };
@@ -121,7 +129,7 @@ export function todoReducer(state, action) {
       return {
         ...state,
         todoList: state.todoList.map((todo) =>
-          todo.id === action.payload.todo.id ? action.payload.todo : todo
+          getTodoId(todo) === getTodoId(action.payload.todo) ? action.payload.todo : todo
         ),
         error: '',
       };
@@ -130,7 +138,7 @@ export function todoReducer(state, action) {
       return {
         ...state,
         todoList: state.todoList.map((todo) =>
-          todo.id === action.payload.id ? action.payload.todo : todo
+          getTodoId(todo) === action.payload.id ? action.payload.todo : todo
         ),
         dataVersion: state.dataVersion + 1,
         error: '',
@@ -140,7 +148,7 @@ export function todoReducer(state, action) {
       return {
         ...state,
         todoList: state.todoList.map((todo) =>
-          todo.id === action.payload.todo.id ? action.payload.todo : todo
+          getTodoId(todo) === getTodoId(action.payload.todo) ? action.payload.todo : todo
         ),
         error: action.payload.message,
       };
@@ -148,7 +156,7 @@ export function todoReducer(state, action) {
     case TODO_ACTIONS.DELETE_TODO_START:
       return {
         ...state,
-        todoList: state.todoList.filter((todo) => todo.id !== action.payload.id),
+        todoList: state.todoList.filter((todo) => getTodoId(todo) !== action.payload.id),
         error: '',
       };
 

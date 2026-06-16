@@ -51,7 +51,7 @@ export default function TodoList({
     <ul className="todo-list">
       {filteredTodoList.todos.map((todo) => (
         <TodoListItem
-          key={todo.id}
+          key={todo.id ?? todo._id}
           todo={todo}
           onCompleteTodo={onCompleteTodo}
           onDeleteTodo={onDeleteTodo}

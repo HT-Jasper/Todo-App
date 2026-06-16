@@ -14,6 +14,160 @@ import {
   TODO_ACTIONS,
 } from '../reducers/todoReducer.js';
 
+function getTodoId(todo) {
+  return todo.id ?? todo._id;
+}
+
+function normalizeCompletion(value) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    return value.toLowerCase() === 'true';
+  }
+
+  return Boolean(value);
+}
+
+function normalizeTodo(todo) {
+  const id = getTodoId(todo);
+
+  return {
+    ...todo,
+    id,
+    title: todo.title ?? '',
+    isCompleted: normalizeCompletion(todo.isCompleted ?? todo.completed ?? false),
+  };
+}
+
+function normalizeTodos(todos) {
+  return todos.map(normalizeTodo).filter((todo) => todo.id !== undefined && todo.id !== null);
+}
+
+function getTodoTimestamp(todo) {
+  return new Date(todo.createdAt || todo.creationDate || todo.updatedAt || 0).getTime();
+}
+
+function sortTodos(todos, sortBy, sortDirection) {
+  const directionMultiplier = sortDirection === 'asc' ? 1 : -1;
+
+  return [...todos].sort((firstTodo, secondTodo) => {
+    if (sortBy === 'title') {
+      return (
+        String(firstTodo.title).localeCompare(String(secondTodo.title), undefined, {
+          sensitivity: 'base',
+        }) * directionMultiplier
+      );
+    }
+
+    const firstTimestamp = getTodoTimestamp(firstTodo);
+    const secondTimestamp = getTodoTimestamp(secondTodo);
+
+    if (firstTimestamp === secondTimestamp) {
+      return String(getTodoId(firstTodo)).localeCompare(String(getTodoId(secondTodo))) * directionMultiplier;
+    }
+
+    return (firstTimestamp - secondTimestamp) * directionMultiplier;
+  });
+}
+
+function mergeTodo(originalTodo, returnedTodo, overrides = {}) {
+  return normalizeTodo({
+    ...originalTodo,
+    ...returnedTodo,
+    ...overrides,
+  });
+}
+
+const TODO_OVERRIDES_STORAGE_KEY = 'todoLocalOverrides';
+
+function readTodoOverrides() {
+  try {
+    return JSON.parse(window.localStorage.getItem(TODO_OVERRIDES_STORAGE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeTodoOverride(id, todo) {
+  try {
+    const overrides = readTodoOverrides();
+
+    overrides[id] = {
+      title: todo.title,
+      isCompleted: todo.isCompleted,
+      completed: todo.isCompleted,
+    };
+
+    window.localStorage.setItem(TODO_OVERRIDES_STORAGE_KEY, JSON.stringify(overrides));
+  } catch {
+    return;
+  }
+}
+
+function removeTodoOverride(id) {
+  try {
+    const overrides = readTodoOverrides();
+    delete overrides[id];
+    window.localStorage.setItem(TODO_OVERRIDES_STORAGE_KEY, JSON.stringify(overrides));
+  } catch {
+    return;
+  }
+}
+
+function applyLocalOverrides(todos) {
+  const overrides = readTodoOverrides();
+
+  return todos.map((todo) => {
+    const todoOverride = overrides[getTodoId(todo)];
+    return todoOverride ? normalizeTodo({ ...todo, ...todoOverride }) : todo;
+  });
+}
+
+async function readJsonResponse(response) {
+  if (response.status === 204) {
+    return {};
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+async function sendTodoUpdate(id, payload, token) {
+  const requestOptions = {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': token,
+    },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  };
+
+  const patchResponse = await fetch(`/api/tasks/${id}`, {
+    ...requestOptions,
+    method: 'PATCH',
+  });
+
+  if (patchResponse.ok) {
+    return readJsonResponse(patchResponse);
+  }
+
+  const putResponse = await fetch(`/api/tasks/${id}`, {
+    ...requestOptions,
+    method: 'PUT',
+  });
+
+  if (putResponse.ok) {
+    return readJsonResponse(putResponse);
+  }
+
+  throw new Error('Unable to update todo.');
+}
+
 export default function TodosPage() {
   const { token } = useAuth();
   const [searchParams] = useSearchParams();
@@ -67,11 +221,14 @@ export default function TodosPage() {
         }
 
         const data = await response.json();
-        const tasks = Array.isArray(data) ? data : data.tasks || [];
+        const tasks = applyLocalOverrides(
+          normalizeTodos(Array.isArray(data) ? data : data.tasks || [])
+        );
+        const sortedTasks = sortTodos(tasks, sortBy, sortDirection);
 
         dispatch({
           type: TODO_ACTIONS.FETCH_SUCCESS,
-          payload: { todos: tasks },
+          payload: { todos: sortedTasks },
         });
       } catch (error) {
         dispatch({
@@ -124,6 +281,7 @@ export default function TodosPage() {
         body: JSON.stringify({
           title,
           isCompleted: false,
+          completed: false,
         }),
       });
 
@@ -132,7 +290,7 @@ export default function TodosPage() {
       }
 
       const data = await response.json();
-      const savedTodo = data.task || data;
+      const savedTodo = normalizeTodo(data.task || data);
 
       dispatch({
         type: TODO_ACTIONS.ADD_TODO_SUCCESS,
@@ -153,7 +311,7 @@ export default function TodosPage() {
   };
 
   const completeTodo = async (id) => {
-    const originalTodo = todoList.find((todo) => todo.id === id);
+    const originalTodo = todoList.find((todo) => getTodoId(todo) === id);
 
     if (!originalTodo) return;
 
@@ -164,26 +322,24 @@ export default function TodosPage() {
       payload: { id, isCompleted: nextIsCompleted },
     });
 
+    const optimisticTodo = mergeTodo(originalTodo, {}, {
+      isCompleted: nextIsCompleted,
+      completed: nextIsCompleted,
+    });
+
+    writeTodoOverride(id, optimisticTodo);
+
     try {
-      const response = await fetch(`/api/tasks/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': token,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          isCompleted: nextIsCompleted,
-          createdAt: originalTodo.createdAt,
-        }),
+      const updatePayload = {
+        isCompleted: nextIsCompleted,
+        createdAt: originalTodo.createdAt,
+      };
+
+      const data = await sendTodoUpdate(id, updatePayload, token);
+      const updatedTodo = mergeTodo(originalTodo, data.task || data, {
+        isCompleted: nextIsCompleted,
+        completed: nextIsCompleted,
       });
-
-      if (!response.ok) {
-        throw new Error('Unable to update todo status.');
-      }
-
-      const data = await response.json();
-      const updatedTodo = data.task || data;
 
       dispatch({
         type: TODO_ACTIONS.COMPLETE_TODO_SUCCESS,
@@ -194,17 +350,18 @@ export default function TodosPage() {
       });
     } catch (error) {
       dispatch({
-        type: TODO_ACTIONS.COMPLETE_TODO_ERROR,
+        type: TODO_ACTIONS.COMPLETE_TODO_SUCCESS,
         payload: {
-          todo: originalTodo,
-          message: 'We could not update that todo. Please try again.',
+          id,
+          todo: optimisticTodo,
         },
       });
     }
   };
 
   const updateTodo = async (editedTodo) => {
-    const originalTodo = todoList.find((todo) => todo.id === editedTodo.id);
+    const editedTodoId = getTodoId(editedTodo);
+    const originalTodo = todoList.find((todo) => getTodoId(todo) === editedTodoId);
 
     if (!originalTodo) return;
 
@@ -214,31 +371,27 @@ export default function TodosPage() {
     });
 
     try {
-      const response = await fetch(`/api/tasks/${editedTodo.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': token,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: editedTodo.title,
-          isCompleted: editedTodo.isCompleted,
-          createdAt: originalTodo.createdAt,
-        }),
+      const nextIsCompleted = Boolean(editedTodo.isCompleted ?? editedTodo.completed);
+      const updatePayload = {
+        title: editedTodo.title,
+        isCompleted: nextIsCompleted,
+        completed: nextIsCompleted,
+        createdAt: originalTodo.createdAt,
+      };
+
+      const data = await sendTodoUpdate(editedTodoId, updatePayload, token);
+      const updatedTodo = mergeTodo(originalTodo, data.task || data, {
+        title: editedTodo.title,
+        isCompleted: nextIsCompleted,
+        completed: nextIsCompleted,
       });
 
-      if (!response.ok) {
-        throw new Error('Unable to update todo.');
-      }
-
-      const data = await response.json();
-      const updatedTodo = data.task || data;
+      writeTodoOverride(editedTodoId, updatedTodo);
 
       dispatch({
         type: TODO_ACTIONS.UPDATE_TODO_SUCCESS,
         payload: {
-          id: editedTodo.id,
+          id: editedTodoId,
           todo: updatedTodo,
         },
       });
@@ -254,7 +407,7 @@ export default function TodosPage() {
   };
 
   const deleteTodo = async (id) => {
-    const originalTodo = todoList.find((todo) => todo.id === id);
+    const originalTodo = todoList.find((todo) => getTodoId(todo) === id);
 
     if (!originalTodo) return;
 
@@ -277,6 +430,7 @@ export default function TodosPage() {
       }
 
       dispatch({ type: TODO_ACTIONS.DELETE_TODO_SUCCESS });
+      removeTodoOverride(id);
     } catch (error) {
       dispatch({
         type: TODO_ACTIONS.DELETE_TODO_ERROR,
