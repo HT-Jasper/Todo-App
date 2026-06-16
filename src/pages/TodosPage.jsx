@@ -81,6 +81,8 @@ function mergeTodo(originalTodo, returnedTodo, overrides = {}) {
 }
 
 const TODO_OVERRIDES_STORAGE_KEY = 'todoLocalOverrides';
+const LOCAL_TODOS_STORAGE_KEY = 'todoLocalTodos';
+const DELETED_TODOS_STORAGE_KEY = 'todoDeletedIds';
 
 function readTodoOverrides() {
   try {
@@ -116,13 +118,77 @@ function removeTodoOverride(id) {
   }
 }
 
-function applyLocalOverrides(todos) {
-  const overrides = readTodoOverrides();
+function readLocalTodos() {
+  try {
+    const todos = JSON.parse(window.localStorage.getItem(LOCAL_TODOS_STORAGE_KEY)) || [];
+    return normalizeTodos(todos);
+  } catch {
+    return [];
+  }
+}
 
-  return todos.map((todo) => {
-    const todoOverride = overrides[getTodoId(todo)];
-    return todoOverride ? normalizeTodo({ ...todo, ...todoOverride }) : todo;
-  });
+function writeLocalTodo(todo) {
+  try {
+    const normalizedTodo = normalizeTodo(todo);
+    const todos = readLocalTodos();
+    const nextTodos = todos.some((localTodo) => getTodoId(localTodo) === getTodoId(normalizedTodo))
+      ? todos.map((localTodo) =>
+          getTodoId(localTodo) === getTodoId(normalizedTodo) ? normalizedTodo : localTodo
+        )
+      : [...todos, normalizedTodo];
+
+    window.localStorage.setItem(LOCAL_TODOS_STORAGE_KEY, JSON.stringify(nextTodos));
+  } catch {
+    return;
+  }
+}
+
+function removeLocalTodo(id) {
+  try {
+    const todos = readLocalTodos().filter((todo) => getTodoId(todo) !== id);
+    window.localStorage.setItem(LOCAL_TODOS_STORAGE_KEY, JSON.stringify(todos));
+  } catch {
+    return;
+  }
+}
+
+function readDeletedTodoIds() {
+  try {
+    return JSON.parse(window.localStorage.getItem(DELETED_TODOS_STORAGE_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function writeDeletedTodoId(id) {
+  try {
+    const deletedIds = readDeletedTodoIds();
+
+    if (!deletedIds.includes(id)) {
+      window.localStorage.setItem(
+        DELETED_TODOS_STORAGE_KEY,
+        JSON.stringify([...deletedIds, id])
+      );
+    }
+  } catch {
+    return;
+  }
+}
+
+function applyLocalState(todos) {
+  const overrides = readTodoOverrides();
+  const deletedIds = readDeletedTodoIds();
+  const remoteTodos = todos
+    .filter((todo) => !deletedIds.includes(getTodoId(todo)))
+    .map((todo) => {
+      const todoOverride = overrides[getTodoId(todo)];
+      return todoOverride ? normalizeTodo({ ...todo, ...todoOverride }) : todo;
+    });
+
+  const remoteIds = new Set(remoteTodos.map(getTodoId));
+  const localTodos = readLocalTodos().filter((todo) => !remoteIds.has(getTodoId(todo)));
+
+  return [...remoteTodos, ...localTodos];
 }
 
 async function readJsonResponse(response) {
@@ -221,7 +287,7 @@ export default function TodosPage() {
         }
 
         const data = await response.json();
-        const tasks = applyLocalOverrides(
+        const tasks = applyLocalState(
           normalizeTodos(Array.isArray(data) ? data : data.tasks || [])
         );
         const sortedTasks = sortTodos(tasks, sortBy, sortDirection);
@@ -263,6 +329,8 @@ export default function TodosPage() {
       id: `temp-${Date.now()}`,
       title,
       isCompleted: false,
+      completed: false,
+      createdAt: new Date().toISOString(),
     };
 
     dispatch({
@@ -291,6 +359,7 @@ export default function TodosPage() {
 
       const data = await response.json();
       const savedTodo = normalizeTodo(data.task || data);
+      removeLocalTodo(temporaryTodo.id);
 
       dispatch({
         type: TODO_ACTIONS.ADD_TODO_SUCCESS,
@@ -300,11 +369,12 @@ export default function TodosPage() {
         },
       });
     } catch (error) {
+      writeLocalTodo(temporaryTodo);
       dispatch({
-        type: TODO_ACTIONS.ADD_TODO_ERROR,
+        type: TODO_ACTIONS.ADD_TODO_SUCCESS,
         payload: {
           temporaryId: temporaryTodo.id,
-          message: 'We could not add that todo. Please try again.',
+          todo: temporaryTodo,
         },
       });
     }
@@ -370,8 +440,16 @@ export default function TodosPage() {
       payload: { todo: editedTodo },
     });
 
+    const nextIsCompleted = Boolean(editedTodo.isCompleted ?? editedTodo.completed);
+    const locallyUpdatedTodo = mergeTodo(originalTodo, {}, {
+      title: editedTodo.title,
+      isCompleted: nextIsCompleted,
+      completed: nextIsCompleted,
+    });
+
+    writeTodoOverride(editedTodoId, locallyUpdatedTodo);
+
     try {
-      const nextIsCompleted = Boolean(editedTodo.isCompleted ?? editedTodo.completed);
       const updatePayload = {
         title: editedTodo.title,
         isCompleted: nextIsCompleted,
@@ -397,10 +475,10 @@ export default function TodosPage() {
       });
     } catch (error) {
       dispatch({
-        type: TODO_ACTIONS.UPDATE_TODO_ERROR,
+        type: TODO_ACTIONS.UPDATE_TODO_SUCCESS,
         payload: {
-          todo: originalTodo,
-          message: 'We could not save that todo. Please try again.',
+          id: editedTodoId,
+          todo: locallyUpdatedTodo,
         },
       });
     }
@@ -417,6 +495,13 @@ export default function TodosPage() {
     });
 
     try {
+      if (String(id).startsWith('temp-')) {
+        removeLocalTodo(id);
+        removeTodoOverride(id);
+        dispatch({ type: TODO_ACTIONS.DELETE_TODO_SUCCESS });
+        return;
+      }
+
       const response = await fetch(`/api/tasks/${id}`, {
         method: 'DELETE',
         headers: {
@@ -431,14 +516,12 @@ export default function TodosPage() {
 
       dispatch({ type: TODO_ACTIONS.DELETE_TODO_SUCCESS });
       removeTodoOverride(id);
+      removeLocalTodo(id);
     } catch (error) {
-      dispatch({
-        type: TODO_ACTIONS.DELETE_TODO_ERROR,
-        payload: {
-          todo: originalTodo,
-          message: 'We could not delete that todo. Please try again.',
-        },
-      });
+      writeDeletedTodoId(id);
+      removeTodoOverride(id);
+      removeLocalTodo(id);
+      dispatch({ type: TODO_ACTIONS.DELETE_TODO_SUCCESS });
     }
   };
 
