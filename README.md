@@ -4,7 +4,7 @@ A polished React todo application for managing authenticated task lists. The app
 
 ## Live Demo
 
-https://vercel.com/huy-tran-todo-apps
+https://todo-app-kappa-roan.vercel.app/login
 
 ## Features
 
@@ -27,14 +27,6 @@ https://vercel.com/huy-tran-todo-apps
 - CSS
 - Vercel rewrites for production API proxying
 
-## Screenshots
-
-Add screenshots before submitting:
-
-- Desktop todo dashboard
-- Mobile todo dashboard
-- Login screen
-- Profile statistics screen
 
 ## Getting Started
 
@@ -45,8 +37,10 @@ Add screenshots before submitting:
 
 ### Installation
 
+Clone or download this repository, then open the project folder:
+
 ```powershell
-cd D:\Git\Todo-App
+cd Todo-App
 npm install
 ```
 
