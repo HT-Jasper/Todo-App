@@ -4,7 +4,7 @@ A polished React todo application for managing authenticated task lists. The app
 
 ## Live Demo
 
-https://todo-app-kappa-roan.vercel.app/login
+https://vercel.com/huy-tran-todo-apps/todo-app
 
 ## Features
 
