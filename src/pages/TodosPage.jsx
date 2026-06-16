@@ -1,18 +1,21 @@
 import { useEffect, useReducer } from 'react';
-import TodoForm from './TodoForm.jsx';
-import TodoList from './TodoList/TodoList.jsx';
-import SortBy from '../../shared/SortBy.jsx';
-import FilterInput from '../../shared/FilterInput.jsx';
-import useDebounce from '../../utils/useDebounce.js';
-import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useSearchParams } from 'react-router';
+import TodoForm from '../features/Todos/TodoForm.jsx';
+import TodoList from '../features/Todos/TodoList/TodoList.jsx';
+import SortBy from '../shared/SortBy.jsx';
+import StatusFilter from '../shared/StatusFilter.jsx';
+import FilterInput from '../shared/FilterInput.jsx';
+import useDebounce from '../utils/useDebounce.js';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import {
   initialTodoState,
   todoReducer,
   TODO_ACTIONS,
-} from '../../reducers/todoReducer.js';
+} from '../reducers/todoReducer.js';
 
 export default function TodosPage() {
   const { token } = useAuth();
+  const [searchParams] = useSearchParams();
   const [state, dispatch] = useReducer(todoReducer, initialTodoState);
   const {
     todoList,
@@ -24,9 +27,10 @@ export default function TodosPage() {
     filterTerm,
     dataVersion,
   } = state;
-  
+
   const debouncedFilterTerm = useDebounce(filterTerm, 300);
-  
+  const statusFilter = searchParams.get('status') || 'all';
+
   useEffect(() => {
     if (!token) return;
 
@@ -251,7 +255,10 @@ export default function TodosPage() {
       {error && (
         <div>
           <p>{error}</p>
-          <button type="button" onClick={() => dispatch({ type: TODO_ACTIONS.CLEAR_ERROR })}>
+          <button
+            type="button"
+            onClick={() => dispatch({ type: TODO_ACTIONS.CLEAR_ERROR })}
+          >
             Clear Error
           </button>
         </div>
@@ -260,7 +267,10 @@ export default function TodosPage() {
       {filterError && (
         <div>
           <p>{filterError}</p>
-          <button type="button" onClick={() => dispatch({ type: TODO_ACTIONS.CLEAR_FILTER_ERROR })}>
+          <button
+            type="button"
+            onClick={() => dispatch({ type: TODO_ACTIONS.CLEAR_FILTER_ERROR })}
+          >
             Clear Filter Error
           </button>
           <button type="button" onClick={handleResetFilters}>
@@ -288,6 +298,8 @@ export default function TodosPage() {
         }
       />
 
+      <StatusFilter />
+
       <FilterInput
         filterTerm={filterTerm}
         onFilterChange={handleFilterChange}
@@ -300,6 +312,7 @@ export default function TodosPage() {
         dataVersion={dataVersion}
         onCompleteTodo={completeTodo}
         onUpdateTodo={updateTodo}
+        statusFilter={statusFilter}
       />
     </>
   );
