@@ -1,10 +1,10 @@
 # Portfolio Todo App
  
-A polished React todo application for managing authenticated task lists. The app supports adding, editing, deleting, completing, uncompleting, sorting, searching, and filtering todos through a responsive interface designed for portfolio presentation 
+A polished React todo application for managing authenticated task lists. The app supports adding, editing, deleting, completing, uncompleting, sorting, searching, and filtering todos through a responsive interface designed for portfolio presentation. 
 
 ## Live Demo
 
-https://todo-app-kappa-roan.vercel.app/login
+https://vercel.com/huy-tran-todo-apps/todo-app
 
 ## Features
 
