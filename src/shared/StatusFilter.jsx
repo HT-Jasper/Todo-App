@@ -15,7 +15,7 @@ export default function StatusFilter() {
   };
 
   return (
-    <div>
+    <div className="field">
       <label htmlFor="statusFilter">Show:</label>
       <select
         id="statusFilter"

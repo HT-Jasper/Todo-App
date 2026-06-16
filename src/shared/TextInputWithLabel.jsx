@@ -1,23 +1,47 @@
-// @ts-nocheck
+import { forwardRef } from 'react';
 
-export default function TextInputWithLabel({
-  elementId,
-  labelText,
-  onChange,
-  ref,
-  value,
-}) {
+const TextInputWithLabel = forwardRef(function TextInputWithLabel(
+  {
+    autoComplete,
+    elementId,
+    helpText,
+    inputClassName = '',
+    labelText,
+    maxLength,
+    onChange,
+    placeholder,
+    required = false,
+    type = 'text',
+    value,
+  },
+  ref
+) {
+  const helpId = helpText ? `${elementId}-help` : undefined;
+
   return (
-    <>
-      <label htmlFor={elementId}>{labelText}</label>
+    <div className="field">
+      {labelText && <label htmlFor={elementId}>{labelText}</label>}
       <input
-        type="text"
+        aria-describedby={helpId}
+        autoComplete={autoComplete}
+        className={inputClassName}
         id={elementId}
-        ref={ref}
-        value={value}
+        maxLength={maxLength}
         onChange={onChange}
+        placeholder={placeholder}
+        ref={ref}
+        required={required}
+        type={type}
+        value={value}
       />
-    </>
+      {helpText && (
+        <small className="field-help" id={helpId}>
+          {helpText}
+        </small>
+      )}
+    </div>
   );
-}
+});
+
+export default TextInputWithLabel;
 

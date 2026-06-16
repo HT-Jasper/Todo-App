@@ -70,12 +70,12 @@ export function AuthProvider({ children }) {
 
       return {
         success: false,
-        error: `Authentication failed: ${data?.message || 'Invalid login'}`,
+        error: 'Authentication failed. Check your email and password.',
       };
-    } catch (error) {
+    } catch {
       return {
         success: false,
-        error: `Error: ${error.name} | ${error.message}`,
+        error: 'Unable to log in right now. Please try again.',
       };
     }
   };
@@ -94,12 +94,12 @@ export function AuthProvider({ children }) {
 
       updateAuth('', '');
       return { success: true };
-    } catch (error) {
+    } catch {
       updateAuth('', '');
 
       return {
         success: false,
-        error: `Error logging off: ${error.message}`,
+        error: 'You were signed out locally, but the server did not respond.',
       };
     }
   };

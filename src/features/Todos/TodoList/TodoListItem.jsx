@@ -1,67 +1,116 @@
-import { useState } from "react";
-import TextInputWithLabel from "../../../shared/TextInputWithLabel.jsx";
-import { isValidTodoTitle } from "../../../utils/todoValidation.js";
+import { useState } from 'react';
+import TextInputWithLabel from '../../../shared/TextInputWithLabel.jsx';
+import {
+  TODO_TITLE_MAX_LENGTH,
+  isValidTodoTitle,
+  prepareTodoTitle,
+} from '../../../utils/todoValidation.js';
 
-export default function TodoListItem({ todo, onCompleteTodo, onUpdateTodo }) {
+export default function TodoListItem({
+  todo,
+  onCompleteTodo,
+  onDeleteTodo,
+  onUpdateTodo,
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [workingTitle, setWorkingTitle] = useState(todo.title);
+  const [editError, setEditError] = useState('');
 
   const handleCancel = () => {
     setWorkingTitle(todo.title);
+    setEditError('');
     setIsEditing(false);
   };
 
   const handleEdit = (event) => {
     setWorkingTitle(event.target.value);
+    setEditError('');
   };
 
   const handleUpdate = (event) => {
     if (!isEditing) return;
 
     event.preventDefault();
+    const result = prepareTodoTitle(workingTitle);
+
+    if (result.error) {
+      setEditError(result.error);
+      return;
+    }
 
     onUpdateTodo({
       ...todo,
-      title: workingTitle,
+      title: result.title,
     });
 
+    setEditError('');
     setIsEditing(false);
   };
 
   return (
-    <li>
-      <form onSubmit={handleUpdate}>
+    <li className={todo.isCompleted ? 'todo-item is-complete' : 'todo-item'}>
+      <form className="todo-item-form" onSubmit={handleUpdate}>
         {isEditing ? (
-          <>
+          <div className="todo-edit-row">
             <TextInputWithLabel
-              value={workingTitle}
+              elementId={`editTodo${todo.id}`}
+              labelText="Edit todo"
+              maxLength={TODO_TITLE_MAX_LENGTH}
               onChange={handleEdit}
+              value={workingTitle}
             />
 
-            <button type="button" onClick={handleCancel}>
-              Cancel
-            </button>
+            {editError && <p className="form-error">{editError}</p>}
 
-            <button
-              type="button"
-              onClick={handleUpdate}
-              disabled={!isValidTodoTitle(workingTitle)}
-            >
-              Update
-            </button>
-          </>
+            <div className="todo-actions">
+              <button type="button" className="button-secondary" onClick={handleCancel}>
+              Cancel
+              </button>
+
+              <button type="submit" disabled={!isValidTodoTitle(workingTitle)}>
+                Update
+              </button>
+            </div>
+          </div>
         ) : (
           <>
-            <label>
+            <label className="todo-checkbox">
               <input
                 type="checkbox"
                 id={`checkbox${todo.id}`}
                 checked={todo.isCompleted}
                 onChange={() => onCompleteTodo(todo.id)}
               />
+              <span className="checkbox-control" aria-hidden="true" />
+              <span className="sr-only">
+                {todo.isCompleted ? 'Mark todo active' : 'Mark todo complete'}
+              </span>
             </label>
 
-            <span onClick={() => setIsEditing(true)}>{todo.title}</span>
+            <button
+              className="todo-title-button"
+              type="button"
+              onClick={() => setIsEditing(true)}
+            >
+              {todo.title}
+            </button>
+
+            <div className="todo-actions">
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={() => setIsEditing(true)}
+              >
+                Edit
+              </button>
+              <button
+                className="button-danger"
+                type="button"
+                onClick={() => onDeleteTodo(todo.id)}
+              >
+                Delete
+              </button>
+            </div>
           </>
         )}
       </form>

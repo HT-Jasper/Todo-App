@@ -15,8 +15,8 @@ export default function HomePage() {
   }, [isAuthenticated, navigate]);
 
   return (
-    <div>
+    <main className="page-shell">
       <p>Redirecting...</p>
-    </div>
+    </main>
   );
 }

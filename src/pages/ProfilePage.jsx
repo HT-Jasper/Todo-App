@@ -32,7 +32,7 @@ export default function ProfilePage() {
         }
 
         if (!response.ok) {
-          throw new Error('Failed to fetch todos');
+          throw new Error('Unable to load statistics.');
         }
 
         const data = await response.json();
@@ -42,8 +42,8 @@ export default function ProfilePage() {
         const active = total - completed;
 
         setTodoStats({ total, completed, active });
-      } catch (err) {
-        setError(`Error loading statistics: ${err.message}`);
+      } catch {
+        setError('We could not load your statistics. Please try again.');
       } finally {
         setIsLoading(false);
       }
@@ -58,28 +58,47 @@ export default function ProfilePage() {
       : 0;
 
   return (
-    <main>
-      <h2>Profile</h2>
+    <main className="page-shell content-page">
+      <section className="page-heading">
+        <p className="eyebrow">Account</p>
+        <h2>Profile</h2>
+      </section>
 
-      <section>
+      <section className="content-section">
         <h3>Account Information</h3>
         <p>Name: {name || 'Unknown user'}</p>
         <p>Status: {isAuthenticated ? 'Authenticated' : 'Not authenticated'}</p>
       </section>
 
-      <section>
+      <section className="content-section">
         <h3>Todo Statistics</h3>
 
-        {isLoading && <p>Loading statistics...</p>}
-        {error && <p>{error}</p>}
+        {isLoading && <p className="loading-state">Loading statistics...</p>}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
 
         {!isLoading && !error && (
-          <div>
-            <p>Total todos: {todoStats.total}</p>
-            <p>Completed todos: {todoStats.completed}</p>
-            <p>Active todos: {todoStats.active}</p>
+          <div className="stats-grid">
+            <p>
+              <span>Total todos</span>
+              <strong>{todoStats.total}</strong>
+            </p>
+            <p>
+              <span>Completed</span>
+              <strong>{todoStats.completed}</strong>
+            </p>
+            <p>
+              <span>Active</span>
+              <strong>{todoStats.active}</strong>
+            </p>
             {todoStats.total > 0 && (
-              <p>Completion percentage: {completionPercentage}%</p>
+              <p>
+                <span>Completion</span>
+                <strong>{completionPercentage}%</strong>
+              </p>
             )}
           </div>
         )}
